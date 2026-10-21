@@ -1,5 +1,6 @@
 package com.ravan.ai.ui.home
 
+import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,15 +18,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ravan.ai.core.result.ActionResult
 import com.ravan.ai.domain.model.Command
 import com.ravan.ai.domain.router.CommandRouter
 import com.ravan.ai.domain.router.RouteDecision
+import com.ravan.ai.platform.actions.TorchController
 
 @Composable
 fun HomePlaceholderScreen() {
+    val context = LocalContext.current
     var input by remember { mutableStateOf("") }
     var result by remember { mutableStateOf<String?>(null) }
 
@@ -43,7 +48,7 @@ fun HomePlaceholderScreen() {
             fontWeight = FontWeight.Bold
         )
         Text(
-            text = "Command router test (Stage 3). Voice Stage 4 mein aayega.",
+            text = "Command router test. Torch ab asli mein on/off hoti hai.",
             color = MaterialTheme.colorScheme.onBackground,
             fontSize = 14.sp
         )
@@ -55,7 +60,7 @@ fun HomePlaceholderScreen() {
             modifier = Modifier.fillMaxWidth()
         )
         Button(
-            onClick = { result = describe(CommandRouter.route(input)) },
+            onClick = { result = handle(context, CommandRouter.route(input)) },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Route karo")
@@ -66,10 +71,23 @@ fun HomePlaceholderScreen() {
     }
 }
 
-private fun describe(decision: RouteDecision): String = when (decision) {
-    is RouteDecision.Local -> "Local command mila: ${describeCommand(decision.command)}"
+private fun handle(context: Context, decision: RouteDecision): String = when (decision) {
+    is RouteDecision.Local -> handleCommand(context, decision.command)
     is RouteDecision.Clarify -> "RAVAN poochta hai: ${decision.question}"
     is RouteDecision.SendToAi -> "Local match nahi hua. Gemini ke paas jaayega (Stage 6): \"${decision.text}\""
+}
+
+private fun handleCommand(context: Context, command: Command): String = when (command) {
+    Command.TorchOn -> resultText(TorchController.set(context, true))
+    Command.TorchOff -> resultText(TorchController.set(context, false))
+    else -> "Command samajh aaya: ${describeCommand(command)}. Action Stage 5 mein banega."
+}
+
+private fun resultText(result: ActionResult): String = when (result) {
+    is ActionResult.Success -> result.spokenText
+    is ActionResult.NotInstalled -> "${result.appName} install nahi hai."
+    is ActionResult.PermissionMissing -> "Permission chahiye: ${result.permission}. ${result.reason}"
+    is ActionResult.Failed -> result.reason
 }
 
 private fun describeCommand(command: Command): String = when (command) {
